@@ -48,6 +48,8 @@ pub fn create_overrides() -> anyhow::Result<()> {
 }
 
 /// Write a line to the overrides configuartion file.
+/// If the line is a monitor configuration and a monitor with the same name already exists,
+/// it will replace the existing line instead of appending.
 pub fn write_override_line(line: &str) -> anyhow::Result<()> {
     let home_dir = home_dir().ok_or_else(|| {
         anyhow::anyhow!("Could not determine home directory for the current user")
@@ -55,13 +57,50 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
 
     let hypr_overrides_path = home_dir.join(HYPR_OVERRIDES_PATH);
 
-    let mut hypr_overrides_file = std::fs::OpenOptions::new()
-        .append(true)
-        .open(&hypr_overrides_path)?;
+    // Read existing content
+    let content = std::fs::read_to_string(&hypr_overrides_path)?;
+    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
 
-    writeln!(hypr_overrides_file, "{}", line)?;
+    // Check if this is a monitor configuration line
+    if let Some(monitor_name) = extract_monitor_name(line) {
+        // Find and replace existing monitor entry
+        let mut found = false;
+        for existing_line in lines.iter_mut() {
+            if let Some(existing_monitor) = extract_monitor_name(existing_line) {
+                if existing_monitor == monitor_name {
+                    *existing_line = line.to_string();
+                    found = true;
+                    break;
+                }
+            }
+        }
+        
+        // If not found, append the new line
+        if !found {
+            lines.push(line.to_string());
+        }
+    } else {
+        // For non-monitor lines, just append
+        lines.push(line.to_string());
+    }
+
+    // Write back to file
+    let updated_content = lines.join("\n") + "\n";
+    std::fs::write(&hypr_overrides_path, updated_content)?;
 
     Ok(())
+}
+
+/// Extract monitor name from a monitor configuration line
+/// e.g., "monitor=DP-3,2560x1440@155,auto,1" -> Some("DP-3")
+fn extract_monitor_name(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+    if let Some(config) = trimmed.strip_prefix("monitor=") {
+        if let Some(comma_pos) = config.find(',') {
+            return Some(config[..comma_pos].to_string());
+        }
+    }
+    None
 }
 
 // unsure if i want this
@@ -83,4 +122,23 @@ pub fn monitor_override(monitor_name: String, settings: MonitorMode) -> String {
     let auto_position_string = format!("{}@{},auto,1", settings.resolution, settings.refresh_rate);
 
     format!("monitor={},{}", monitor_name, auto_position_string)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_monitor_name() {
+        assert_eq!(
+            extract_monitor_name("monitor=DP-3,2560x1440@155,auto,1"),
+            Some("DP-3".to_string())
+        );
+        assert_eq!(
+            extract_monitor_name("  monitor=HDMI-A-1,1920x1080@60,auto,1  "),
+            Some("HDMI-A-1".to_string())
+        );
+        assert_eq!(extract_monitor_name("# comment line"), None);
+        assert_eq!(extract_monitor_name("some other config"), None);
+    }
 }
