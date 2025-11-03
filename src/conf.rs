@@ -129,6 +129,17 @@ pub fn monitor_override(monitor_name: String, settings: MonitorMode) -> String {
     )
 }
 
+// Capitalise the locales so they are easier to read for now
+// TODO: Find some form of default list of 2-letter locale codes with proper names
+// e.g., "us" -> "US", "fi" -> "FI". Maybe hyprland config has a list
+pub fn humanize_locale(locale: &str) -> String {
+    locale
+        .chars()
+        .enumerate()
+        .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
