@@ -2630,6 +2630,8 @@ dependencies = [
  "dirs 6.0.0",
  "gpui",
  "gpui-component",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

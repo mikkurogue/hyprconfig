@@ -2,14 +2,16 @@ use gpui::App;
 use gpui::*;
 use gpui_component::{button::*, *};
 
-use crate::ui::monitor_settings::MonitorSettings;
+use crate::ui::{keyboard_settings::KeyboardSettings, monitor_settings::MonitorSettings};
 
 mod conf;
+mod keyboard;
 mod monitor;
 mod ui;
 
 pub struct Hyprconfig {
     monitor_settings: Vec<Entity<MonitorSettings>>,
+    keyboard_settings: Entity<KeyboardSettings>,
 }
 
 impl Render for Hyprconfig {
@@ -47,6 +49,13 @@ impl Render for Hyprconfig {
                     }),
             )
             .children(self.monitor_settings.iter().cloned())
+            .child(
+                div()
+                    .text_xl()
+                    .font_weight(FontWeight::BOLD)
+                    .child("Keyboard settings"),
+            )
+            .child(self.keyboard_settings.clone())
     }
 }
 
@@ -93,7 +102,12 @@ fn main() {
                         .map(|monitor| cx.new(|cx| MonitorSettings::new(monitor, window, cx)))
                         .collect();
 
-                    Hyprconfig { monitor_settings }
+                    let keyboard_settings = cx.new(|cx| KeyboardSettings::new(window, cx));
+
+                    Hyprconfig {
+                        monitor_settings,
+                        keyboard_settings,
+                    }
                 });
                 // Root component
                 cx.new(|cx| Root::new(view.into(), window, cx))

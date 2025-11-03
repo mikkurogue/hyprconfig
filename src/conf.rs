@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use crate::monitor::MonitorMode;
 use dirs::home_dir;
@@ -81,6 +81,21 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
         if !found {
             lines.push(line.to_string());
         }
+    } else if line.trim().starts_with("input:kb_layout=") {
+        // Handle keyboard layout overrides similarly
+        let mut found = false;
+        for existing_line in lines.iter_mut() {
+            if existing_line.trim().starts_with("input:kb_layout=") {
+                *existing_line = line.to_string();
+                found = true;
+                break;
+            }
+        }
+
+        // If not found, append the new line
+        if !found {
+            lines.push(line.to_string());
+        }
     } else {
         // For non-monitor lines, just append
         lines.push(line.to_string());
@@ -127,6 +142,29 @@ pub fn monitor_override(monitor_name: String, settings: MonitorMode) -> String {
         "{}{},{}",
         MONITOR_CONFIG_PREFIX, monitor_name, auto_position_string
     )
+}
+
+/// Generate a keyboard locale override string for hyprland configuration.
+/// E.g., for locales {"us", "fi"}, generates "input:kb_layout=us,fi"
+pub fn locale_override(locale: HashSet<String>) -> String {
+    let mut input_locale_setting = String::from("input:kb_layout=");
+
+    let locales: Vec<&str> = locale.iter().map(|s| s.as_str()).collect();
+    input_locale_setting.push_str(&locales.join(","));
+
+    input_locale_setting
+}
+
+// Capitalise the locales so they are easier to read for now
+// TODO: Find some form of default list of 2-letter locale codes with proper names
+// e.g., "us" -> "US", "fi" -> "FI". Maybe hyprland config has a list
+#[allow(dead_code)]
+pub fn humanize_locale(locale: &str) -> String {
+    locale
+        .chars()
+        .enumerate()
+        .map(|(i, c)| if i == 0 { c.to_ascii_uppercase() } else { c })
+        .collect()
 }
 
 #[cfg(test)]
