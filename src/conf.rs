@@ -7,6 +7,8 @@ use std::io::Write;
 const HYPR_CONFIG_PATH: &str = ".config/hypr/hyprland.conf";
 const HYPR_OVERRIDES_PATH: &str = ".config/hypr/conf-overrides.conf";
 
+const MONITOR_CONFIG_PREFIX: &str = "monitor=";
+
 /// Create the overrides configuration file for hyprland.
 /// This file is created at `~./config/hypr/conf-overrides.conf`
 /// If the file already exists, it will not be overwritten.
@@ -66,15 +68,15 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
         // Find and replace existing monitor entry
         let mut found = false;
         for existing_line in lines.iter_mut() {
-            if let Some(existing_monitor) = extract_monitor_name(existing_line) {
-                if existing_monitor == monitor_name {
-                    *existing_line = line.to_string();
-                    found = true;
-                    break;
-                }
+            if let Some(existing_monitor) = extract_monitor_name(existing_line)
+                && existing_monitor == monitor_name
+            {
+                *existing_line = line.to_string();
+                found = true;
+                break;
             }
         }
-        
+
         // If not found, append the new line
         if !found {
             lines.push(line.to_string());
@@ -95,10 +97,10 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
 /// e.g., "monitor=DP-3,2560x1440@155,auto,1" -> Some("DP-3")
 fn extract_monitor_name(line: &str) -> Option<String> {
     let trimmed = line.trim();
-    if let Some(config) = trimmed.strip_prefix("monitor=") {
-        if let Some(comma_pos) = config.find(',') {
-            return Some(config[..comma_pos].to_string());
-        }
+    if let Some(config) = trimmed.strip_prefix(MONITOR_CONFIG_PREFIX)
+        && let Some(comma_pos) = config.find(',')
+    {
+        return Some(config[..comma_pos].to_string());
     }
     None
 }
@@ -121,7 +123,10 @@ pub fn monitor_override(monitor_name: String, settings: MonitorMode) -> String {
     // for now we want this, as I only have 1 monitor to test with so position settings are TODO
     let auto_position_string = format!("{}@{},auto,1", settings.resolution, settings.refresh_rate);
 
-    format!("monitor={},{}", monitor_name, auto_position_string)
+    format!(
+        "{}{},{}",
+        MONITOR_CONFIG_PREFIX, monitor_name, auto_position_string
+    )
 }
 
 #[cfg(test)]
