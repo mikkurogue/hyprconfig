@@ -4,15 +4,15 @@ use gpui_component::{button::*, *};
 
 use crate::ui::monitor_settings::MonitorSettings;
 
+mod conf;
+mod monitor;
 mod ui;
 
-mod monitor;
-
-pub struct HelloWorld {
+pub struct Hyprconfig {
     monitor_settings: Vec<Entity<MonitorSettings>>,
 }
 
-impl Render for HelloWorld {
+impl Render for Hyprconfig {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
         div()
             .v_flex()
@@ -67,6 +67,10 @@ pub fn init(cx: &mut App) {
 }
 
 fn main() {
+    // first check if overrides file exists, if not create it.
+
+    conf::create_overrides().expect("Failed to create Hyprland overrides configuration file");
+
     let app = Application::new();
 
     app.run(move |cx| {
@@ -90,7 +94,7 @@ fn main() {
                         .map(|monitor| cx.new(|cx| MonitorSettings::new(monitor, window, cx)))
                         .collect();
 
-                    HelloWorld { monitor_settings }
+                    Hyprconfig { monitor_settings }
                 });
                 // Root component
                 cx.new(|cx| Root::new(view.into(), window, cx))
