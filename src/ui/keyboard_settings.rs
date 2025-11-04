@@ -5,8 +5,10 @@ use std::collections::HashSet;
 
 use gpui_component::StyledExt;
 
-use crate::conf::{self, write_override_line};
-use crate::keyboard::LocaleInfo;
+use crate::{
+    conf::{self, write_override_line},
+    util::keyboard::{LocaleInfo, current_device_locales, sys_locales},
+};
 
 pub struct KeyboardSettings {
     selected_locales: HashSet<String>,
@@ -17,7 +19,7 @@ pub struct KeyboardSettings {
 impl KeyboardSettings {
     pub fn new(window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> Self {
         // Load available locales from XKB
-        let available_locales = crate::keyboard::get_available_locales().unwrap_or_else(|e| {
+        let available_locales = sys_locales().unwrap_or_else(|e| {
             eprintln!("Failed to load locales from XKB: {}, using fallback", e);
             vec![
                 LocaleInfo {
@@ -41,7 +43,7 @@ impl KeyboardSettings {
             .map(|l| format!("{} ({})", l.label, l.code))
             .collect();
 
-        let selected_locales = crate::keyboard::get_current_locales().unwrap_or_else(|e| {
+        let selected_locales = current_device_locales().unwrap_or_else(|e| {
             eprintln!("Failed to get current locales: {}, using default", e);
             let mut default_set = HashSet::new();
             default_set.insert("us".to_string());
@@ -121,8 +123,7 @@ impl Render for KeyboardSettings {
             .child(
                 div()
                     .font_weight(FontWeight::BOLD)
-                    .text_lg()
-                    .child("Keyboard Settings".to_string()),
+                    .child("Input locales".to_string()),
             )
             .child(
                 div()

@@ -5,7 +5,7 @@ use gpui_component::dropdown::*;
 use gpui_component::{IndexPath, StyledExt};
 
 use crate::conf::{monitor_override, write_override_line};
-use crate::monitor::{MonitorInfo, MonitorMode};
+use crate::util::monitor::{MonitorInfo, MonitorMode};
 
 pub struct MonitorSettings {
     monitor_id: u32,
@@ -110,7 +110,6 @@ impl Render for MonitorSettings {
             .child(
                 div()
                     .font_weight(FontWeight::BOLD)
-                    .text_lg()
                     .child(format!("{} (ID: {})", self.monitor_name, self.monitor_id)),
             )
             .child(

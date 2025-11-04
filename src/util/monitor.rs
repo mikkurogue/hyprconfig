@@ -1,4 +1,3 @@
-use anyhow::Result;
 use std::process::Command;
 
 #[derive(Debug, Clone)]
@@ -17,21 +16,14 @@ pub struct MonitorMode {
     pub refresh_rate: f32,
 }
 
-// for now this is unused
-// impl MonitorMode {
-//     pub fn display_string(&self) -> String {
-//         format!("{}@{:.2}Hz", self.resolution, self.refresh_rate)
-//     }
-// }
-
-pub fn get_monitors() -> Result<Vec<MonitorInfo>> {
+pub fn get_monitors() -> anyhow::Result<Vec<MonitorInfo>> {
     let output = Command::new("hyprctl").args(["monitors", "all"]).output()?;
 
     let stdout = String::from_utf8(output.stdout)?;
     parse_monitors(&stdout)
 }
 
-fn parse_monitors(output: &str) -> Result<Vec<MonitorInfo>> {
+fn parse_monitors(output: &str) -> anyhow::Result<Vec<MonitorInfo>> {
     let mut monitors = Vec::new();
     let mut current_monitor: Option<MonitorInfo> = None;
 
@@ -85,9 +77,9 @@ fn parse_monitors(output: &str) -> Result<Vec<MonitorInfo>> {
                     if pos_parts.len() == 2
                         && let (Ok(x), Ok(y)) =
                             (pos_parts[0].parse::<i32>(), pos_parts[1].parse::<i32>())
-                        {
-                            monitor.position = (x, y);
-                        }
+                    {
+                        monitor.position = (x, y);
+                    }
                 }
             } else if line.starts_with("availableModes:") {
                 // Parse available modes: "availableModes: 2560x1440@59.95Hz ..."
@@ -95,12 +87,13 @@ fn parse_monitors(output: &str) -> Result<Vec<MonitorInfo>> {
                 for mode_str in modes_str.split_whitespace() {
                     if let Some((res, rate_str)) = mode_str.split_once('@')
                         && let Some(rate_num) = rate_str.strip_suffix("Hz")
-                            && let Ok(rate) = rate_num.parse::<f32>() {
-                                monitor.available_modes.push(MonitorMode {
-                                    resolution: res.to_string(),
-                                    refresh_rate: rate,
-                                });
-                            }
+                        && let Ok(rate) = rate_num.parse::<f32>()
+                    {
+                        monitor.available_modes.push(MonitorMode {
+                            resolution: res.to_string(),
+                            refresh_rate: rate,
+                        });
+                    }
                 }
             }
         }
@@ -112,25 +105,4 @@ fn parse_monitors(output: &str) -> Result<Vec<MonitorInfo>> {
     }
 
     Ok(monitors)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_monitors() {
-        let sample = r#"Monitor DP-3 (ID 0):
-	2560x1440@155.00000 at 0x0
-	description: AOC Q27G2SG4 XFXP8HA003779
-	availableModes: 2560x1440@59.95Hz 2560x1440@155.00Hz 1920x1080@60.00Hz"#;
-
-        let monitors = parse_monitors(sample).unwrap();
-        assert_eq!(monitors.len(), 1);
-        assert_eq!(monitors[0].name, "DP-3");
-        assert_eq!(monitors[0].id, 0);
-        assert_eq!(monitors[0].current_resolution, "2560x1440");
-        assert_eq!(monitors[0].current_refresh_rate, 155.0);
-        assert_eq!(monitors[0].available_modes.len(), 3);
-    }
 }

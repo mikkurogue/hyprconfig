@@ -19,7 +19,7 @@ pub struct LocaleInfo {
 }
 
 /// Parse the XKB base.lst file to get all supported keyboard layouts
-pub fn get_available_locales() -> anyhow::Result<Vec<LocaleInfo>> {
+pub fn sys_locales() -> anyhow::Result<Vec<LocaleInfo>> {
     let content = std::fs::read_to_string("/usr/share/X11/xkb/rules/base.lst")?;
 
     let mut locales = Vec::new();
@@ -52,7 +52,7 @@ pub fn get_available_locales() -> anyhow::Result<Vec<LocaleInfo>> {
 /// Get the currently configured keyboard locales from hyprctl
 /// just parse the first keyboard's layout field as all keyboards are assumed to have the same
 /// layouts
-pub fn get_current_locales() -> anyhow::Result<HashSet<String>> {
+pub fn current_device_locales() -> anyhow::Result<HashSet<String>> {
     let output = Command::new("hyprctl").args(["devices", "-j"]).output()?;
 
     if !output.status.success() {

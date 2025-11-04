@@ -1,13 +1,13 @@
 use gpui::App;
 use gpui::*;
-use gpui_component::{button::*, *};
-
-use crate::ui::{keyboard_settings::KeyboardSettings, monitor_settings::MonitorSettings};
+use gpui_component::*;
 
 mod conf;
-mod keyboard;
-mod monitor;
 mod ui;
+mod util;
+
+use crate::ui::{keyboard_settings::KeyboardSettings, monitor_settings::MonitorSettings};
+use crate::util::monitor;
 
 pub struct Hyprconfig {
     monitor_settings: Vec<Entity<MonitorSettings>>,
@@ -26,35 +26,13 @@ impl Render for Hyprconfig {
                 div()
                     .text_xl()
                     .font_weight(FontWeight::BOLD)
-                    .child("Hyprland Monitor Configuration"),
+                    .child("Hyprland configuration helper"),
             )
-            .child(
-                Button::new("refresh")
-                    .primary()
-                    .label("Refetch Monitors")
-                    .on_click(|_, _, _| {
-                        if let Ok(monitors) = monitor::get_monitors() {
-                            println!("Found {} monitors", monitors.len());
-                            for monitor in &monitors {
-                                println!(
-                                    "  {} (ID {}): {}@{:.2}Hz at {:?}",
-                                    monitor.name,
-                                    monitor.id,
-                                    monitor.current_resolution,
-                                    monitor.current_refresh_rate,
-                                    monitor.position
-                                );
-                            }
-                        }
-                    }),
-            )
+            .child(div().w_full().h_1().rounded_sm().bg(rgb(0xf6f6f6)))
+            .child(div().font_normal().child("Monitors"))
             .children(self.monitor_settings.iter().cloned())
-            .child(
-                div()
-                    .text_xl()
-                    .font_weight(FontWeight::BOLD)
-                    .child("Keyboard settings"),
-            )
+            .child(div().w_full().h_1().rounded_sm().bg(rgb(0xf6f6f6)))
+            .child(div().font_normal().child("Input"))
             .child(self.keyboard_settings.clone())
     }
 }
