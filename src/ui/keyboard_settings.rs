@@ -7,6 +7,7 @@ use gpui_component::StyledExt;
 
 use crate::{
     conf::{self, write_override_line},
+    ui::{item_pill::item_pill, section_container::section_container},
     util::keyboard::{LocaleInfo, current_device_locales, sys_locales},
 };
 
@@ -113,13 +114,8 @@ impl Render for KeyboardSettings {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let selected_locales = self.selected_locales.clone();
 
-        div()
-            .v_flex()
-            .gap_2()
-            .p_4()
-            .border_1()
-            .border_color(rgb(0x404040))
-            .rounded_lg()
+        section_container()
+            .min_h(px(200.0))
             .child(
                 div()
                     .font_weight(FontWeight::BOLD)
@@ -147,16 +143,7 @@ impl Render for KeyboardSettings {
                                 .map(|(idx, locale)| {
                                     let locale_clone = locale.clone();
                                     let label = self.get_label_for_code(locale);
-                                    div()
-                                        .h_flex()
-                                        .gap_1()
-                                        .px_2()
-                                        .py_1()
-                                        .border_1()
-                                        .border_color(rgb(0x606060))
-                                        .rounded_md()
-                                        .bg(rgb(0x2a2a2a))
-                                        .items_center()
+                                    item_pill()
                                         .child(
                                             div()
                                                 .text_sm()

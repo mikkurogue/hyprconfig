@@ -5,6 +5,7 @@ use gpui_component::dropdown::*;
 use gpui_component::{IndexPath, StyledExt};
 
 use crate::conf::{monitor_override, write_override_line};
+use crate::ui::section_container::section_container;
 use crate::util::monitor::{MonitorInfo, MonitorMode};
 
 pub struct MonitorSettings {
@@ -100,13 +101,7 @@ impl Render for MonitorSettings {
         let resolution_dropdown = self.resolution_dropdown.clone();
         let refresh_dropdown = self.refresh_dropdown.clone();
 
-        div()
-            .v_flex()
-            .gap_2()
-            .p_4()
-            .border_1()
-            .border_color(rgb(0x404040))
-            .rounded_lg()
+        section_container()
             .child(
                 div()
                     .font_weight(FontWeight::BOLD)

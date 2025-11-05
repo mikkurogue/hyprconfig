@@ -5,6 +5,7 @@ use gpui_component::slider::{Slider, SliderEvent, SliderState};
 use gpui_component::switch::Switch;
 
 use crate::conf::{mouse_force_no_accel_override, mouse_sensitivity_override, write_override_line};
+use crate::ui::section_container::section_container;
 use crate::util::mouse::{get_accel_setting, get_current_sensitivity};
 
 pub struct MouseSettings {
@@ -75,13 +76,8 @@ impl Render for MouseSettings {
         let current_sens = slider_to_sensitivity(slider_raw);
         let accel_setting = self.force_no_accel_checked;
 
-        div()
-            .v_flex()
-            .gap_2()
-            .p_4()
-            .border_1()
-            .border_color(rgb(0x404040))
-            .rounded_lg()
+        section_container()
+            .min_h(px(200.0))
             .child(
                 div()
                     .font_weight(FontWeight::BOLD)
@@ -116,7 +112,11 @@ impl Render for MouseSettings {
                                     .text_color(rgb(0x808080))
                                     .child("Slow"),
                             )
-                            .child(Slider::new(&self.mouse_sensitivity_slider).w_full())
+                            .child(
+                                Slider::new(&self.mouse_sensitivity_slider)
+                                    .w_full()
+                                    .text_color(hsla(219.0, 0.21, 0.24, 1.0)),
+                            )
                             .child(
                                 div()
                                     .text_size(px(12.0))

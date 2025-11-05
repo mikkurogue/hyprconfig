@@ -1,8 +1,8 @@
 use gpui::*;
-use gpui_component::StyledExt;
 
 use crate::ui::keyboard_settings::KeyboardSettings;
 use crate::ui::mouse_settings::MouseSettings;
+use crate::ui::section_container::section_sub_container;
 
 // Grouped input settings (keyboard now, mouse later)
 pub struct InputSettings {
@@ -23,9 +23,7 @@ impl InputSettings {
 
 impl Render for InputSettings {
     fn render(&mut self, _window: &mut Window, _cx: &mut Context<Self>) -> impl IntoElement {
-        div()
-            .v_flex()
-            .gap_2()
+        section_sub_container()
             .child(self.keyboard_settings.clone())
             .child(self.mouse_settings.clone())
     }

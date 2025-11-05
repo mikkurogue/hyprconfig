@@ -1,12 +1,14 @@
 use gpui::App;
 use gpui::*;
-use gpui_component::scroll::ScrollbarAxis;
 use gpui_component::*;
 
 mod conf;
 mod ui;
 mod util;
 
+use crate::ui::section_container::{
+    main_container, section_divider, section_sub_container, section_title,
+};
 use crate::ui::{input_settings::InputSettings, monitor_settings::MonitorSettings};
 use crate::util::monitor;
 
@@ -17,23 +19,13 @@ pub struct Hyprconfig {
 
 impl Render for Hyprconfig {
     fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
-        v_flex()
-            .gap_4()
-            .size_full()
-            .scrollable(ScrollbarAxis::Vertical)
-            .bg(transparent_white())
-            .p_4()
-            .child(
-                div()
-                    .text_xl()
-                    .font_weight(FontWeight::BOLD)
-                    .child("Hyprland configuration helper"),
-            )
-            .child(div().w_full().h_1().rounded_sm().bg(rgb(0xf6f6f6)))
-            .child(div().font_normal().child("Monitors"))
-            .children(self.monitor_settings.iter().cloned())
-            .child(div().w_full().h_1().rounded_sm().bg(rgb(0xf6f6f6)))
-            .child(div().font_normal().child("Input"))
+        main_container()
+            .child(section_title("Hyprland configuration tool"))
+            .child(section_divider())
+            .child(section_title("Monitors"))
+            .child(section_sub_container().children(self.monitor_settings.iter().cloned()))
+            .child(section_divider())
+            .child(section_title("Input"))
             .child(self.input_settings.clone())
     }
 }
