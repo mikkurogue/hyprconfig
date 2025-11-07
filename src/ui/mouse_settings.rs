@@ -6,7 +6,7 @@ use gpui_component::slider::{Slider, SliderEvent, SliderState};
 use gpui_component::switch::Switch;
 
 use crate::conf::{mouse_force_no_accel_override, mouse_sensitivity_override, write_override_line};
-use crate::ui::section_container::section_container;
+use crate::ui::{section_container::section_container, tooltip::with_tooltip};
 use crate::util::mouse::{get_accel_setting, get_current_sensitivity};
 
 pub struct MouseSettings {
@@ -80,10 +80,14 @@ impl Render for MouseSettings {
         section_container(cx)
             .min_h(px(200.0))
             .child(
-                div()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(cx.theme().foreground)
-                    .child("Mouse settings".to_string()),
+                with_tooltip(
+                    "Mouse sensitivity ranges from -1.0 (slow) to 1.0 (fast). Acceleration adds variable speed based on movement - disable it for consistent 1:1 cursor tracking.",
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(cx.theme().foreground)
+                        .child("Mouse settings".to_string()),
+                    cx,
+                )
             )
             .child(
                 div()

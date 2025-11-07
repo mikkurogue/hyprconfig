@@ -7,6 +7,7 @@ use gpui_component::dropdown::*;
 use std::process::Command;
 
 use crate::conf::{monitor_override, write_override_line};
+use crate::ui::tooltip::with_tooltip;
 use crate::util::monitor::MonitorInfo;
 use crate::util::monitor::MonitorMode;
 
@@ -232,6 +233,172 @@ impl MonitorVisualizer {
         println!("========================\n");
     }
 
+    fn render_monitor_details_panel(
+        &self,
+        monitor: &MonitorInfo,
+        theme: &gpui_component::theme::Theme,
+    ) -> impl IntoElement {
+        let monitor_position = monitor.position;
+        let monitor_name = monitor.name.clone();
+        let resolutions = self.available_resolutions.clone();
+        let refresh_rates = self.available_refresh_rates.clone();
+        let resolution_dropdown = self.resolution_dropdown.clone();
+        let refresh_dropdown = self.refresh_dropdown.clone();
+
+        div()
+            .flex()
+            .flex_col()
+            .gap_3()
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_color(theme.foreground.opacity(0.7))
+                            .text_size(px(12.0))
+                            .child("Resolution:"),
+                    )
+                    .when_some(self.resolution_dropdown.clone(), |this, dropdown| {
+                        this.child(Dropdown::new(&dropdown).min_w(px(200.0)))
+                    }),
+            )
+            .child(
+                div()
+                    .flex()
+                    .flex_col()
+                    .gap_1()
+                    .child(
+                        div()
+                            .text_color(theme.foreground.opacity(0.7))
+                            .text_size(px(12.0))
+                            .child("Refresh Rate:"),
+                    )
+                    .when_some(self.refresh_dropdown.clone(), |this, dropdown| {
+                        this.child(Dropdown::new(&dropdown).min_w(px(200.0)))
+                    }),
+            )
+            .child(
+                div()
+                    .flex()
+                    .justify_between()
+                    .mt_2()
+                    .child(
+                        div()
+                            .text_color(theme.foreground.opacity(0.7))
+                            .child("Position:"),
+                    )
+                    .child(
+                        div()
+                            .font_weight(FontWeight::MEDIUM)
+                            .text_color(theme.foreground)
+                            .child(format!("{}x{}", monitor_position.0, monitor_position.1)),
+                    ),
+            )
+            .child(
+                div().flex().justify_center().mt_3().child(
+                    Button::new("apply-monitor-config")
+                        .label("Apply Configuration")
+                        .on_click(move |_, _, cx| {
+                            Self::apply_monitor_configuration(
+                                &monitor_name,
+                                monitor_position,
+                                &resolutions,
+                                &refresh_rates,
+                                resolution_dropdown.clone(),
+                                refresh_dropdown.clone(),
+                                cx,
+                            );
+                        }),
+                ),
+            )
+            .when(monitor_position == (0, 0), |this| {
+                this.child(
+                    div().flex().justify_center().mt_2().child(
+                        div()
+                            .px_3()
+                            .py_1()
+                            .rounded_md()
+                            .bg(rgb(0x4a7c59))
+                            .text_color(rgb(0xeceff4))
+                            .text_size(px(12.0))
+                            .font_weight(FontWeight::BOLD)
+                            .child("PRIMARY MONITOR"),
+                    ),
+                )
+            })
+    }
+
+    fn apply_monitor_configuration(
+        monitor_name: &str,
+        position: (i32, i32),
+        resolutions: &[String],
+        refresh_rates: &[String],
+        resolution_dropdown: Option<Entity<DropdownState<Vec<String>>>>,
+        refresh_dropdown: Option<Entity<DropdownState<Vec<String>>>>,
+        cx: &mut App,
+    ) {
+        let Some((res_dropdown, ref_dropdown)) = resolution_dropdown.zip(refresh_dropdown) else {
+            return;
+        };
+
+        let selected_res_idx = res_dropdown.read(cx).selected_index(cx);
+        let selected_refresh_idx = ref_dropdown.read(cx).selected_index(cx);
+
+        let Some((res_idx, refresh_idx)) = selected_res_idx.zip(selected_refresh_idx) else {
+            return;
+        };
+
+        let resolution = &resolutions[res_idx.row];
+        let refresh_rate_str = &refresh_rates[refresh_idx.row];
+
+        let refresh_rate: f32 = refresh_rate_str
+            .trim_end_matches("Hz")
+            .parse()
+            .unwrap_or(60.0);
+
+        println!(
+            "Applying: {} @ {}Hz at {}x{} to {}",
+            resolution, refresh_rate, position.0, position.1, monitor_name
+        );
+
+        let override_str = monitor_override(
+            monitor_name.to_string(),
+            MonitorMode {
+                resolution: resolution.clone(),
+                refresh_rate,
+            },
+            position,
+        );
+
+        write_override_line(&override_str).unwrap_or_else(|e| {
+            println!("Failed to write override: {}", e);
+        });
+
+        let config_value = format!(
+            "{},{}@{},{}x{},1",
+            monitor_name, resolution, refresh_rate, position.0, position.1
+        );
+
+        match Command::new("hyprctl")
+            .args(["keyword", "monitor", &config_value])
+            .output()
+        {
+            Ok(output) => {
+                if output.status.success() {
+                    println!("✓ Monitor configuration applied successfully");
+                } else {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    println!("✗ Failed to apply monitor config: {}", stderr);
+                }
+            }
+            Err(e) => {
+                println!("✗ Failed to execute hyprctl: {}", e);
+            }
+        }
+    }
+
     fn apply_monitor_config_immediately(&self, monitor_box: &MonitorBox) {
         let config_value = format!(
             "{},{}@{},{}x{},1",
@@ -266,6 +433,11 @@ impl MonitorVisualizer {
 impl Render for MonitorVisualizer {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let theme = cx.theme();
+        let theme_colors = theme.clone();
+        let foreground = theme.foreground;
+        let foreground_muted = theme.foreground.opacity(0.7);
+        let background = theme.background;
+        let border = theme.border;
         let selected_monitor = self
             .selected_monitor_index
             .and_then(|idx| self.monitors.get(idx))
@@ -278,55 +450,59 @@ impl Render for MonitorVisualizer {
             .gap_4()
             .p_4()
             .child(
-                div()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(theme.foreground)
-                    .text_size(px(18.0))
-                    .child("Monitor Layout Visualizer"),
+                with_tooltip(
+                    "Monitor positions are calculated as pixel coordinates relative to the primary monitor at 0x0. Drag monitors to position them. For now we do not yet supporting snapping, so make sure there are no gaps!",
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(foreground)
+                        .text_size(px(18.0))
+                        .child("Monitor Layout Visualizer"),
+                    cx,
+                )
             )
             .child(
                 div()
-                    .text_color(theme.foreground.opacity(0.7))
+                    .text_color(foreground_muted)
                     .text_size(px(12.0))
                     .child("Drag secondary monitors to position them. Primary monitor (green) is fixed at 0x0."),
             )
             .child(
                 div()
-                    .relative()
-                    .w(px(self.canvas_width))
-                    .h(px(self.canvas_height))
-                    .bg(theme.background)
-                    .border_1()
-                    .border_color(theme.border)
-                    .rounded_md()
-                    .overflow_hidden()
-                    .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _window, cx| {
-                        if let Some(idx) = this.dragging_index {
-                            // Don't allow dragging the primary monitor
-                            if let Some(monitor) = this.monitors.get(idx)
-                                && monitor.monitor.position != (0, 0) {
-                                    let delta_x: f32 = (event.position.x - this.last_mouse_pos.x).into();
-                                    let delta_y: f32 = (event.position.y - this.last_mouse_pos.y).into();
-                                    
-                                    // Mark that we've moved
-                                    if delta_x.abs() > 1.0 || delta_y.abs() > 1.0 {
-                                        this.did_drag = true;
-                                    }
-                                    
-                                    if let Some(monitor) = this.monitors.get_mut(idx) {
-                                        monitor.visual_x += delta_x;
-                                        monitor.visual_y += delta_y;
-                                    }
-                                    
-                                    this.last_mouse_pos = event.position;
-                                    cx.notify();
-                                }
-                        }
-                    }))
-                    .on_mouse_up(MouseButton::Left, cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
-                        if this.dragging_index.is_some() {
-                            this.dragging_index = None;
-                            this.print_monitor_positions();
+                  .relative()
+                  .w(px(self.canvas_width))
+                  .h(px(self.canvas_height))
+                  .bg(background)
+                  .border_1()
+                  .border_color(border)
+                  .rounded_md()
+                  .overflow_hidden()
+                  .on_mouse_move(cx.listener(|this, event: &MouseMoveEvent, _window, cx| {
+                      if let Some(idx) = this.dragging_index {
+                          // Don't allow dragging the primary monitor
+                          if let Some(monitor) = this.monitors.get(idx)
+                              && monitor.monitor.position != (0, 0) {
+                                  let delta_x: f32 = (event.position.x - this.last_mouse_pos.x).into();
+                                  let delta_y: f32 = (event.position.y - this.last_mouse_pos.y).into();
+
+                                  // Mark that we've moved
+                                  if delta_x.abs() > 1.0 || delta_y.abs() > 1.0 {
+                                      this.did_drag = true;
+                                  }
+
+                                  if let Some(monitor) = this.monitors.get_mut(idx) {
+                                      monitor.visual_x += delta_x;
+                                      monitor.visual_y += delta_y;
+                                  }
+
+                                  this.last_mouse_pos = event.position;
+                                  cx.notify();
+                              }
+                      }
+                  }))
+                  .on_mouse_up(MouseButton::Left, cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
+                      if this.dragging_index.is_some() {
+                          this.dragging_index = None;
+                          this.print_monitor_positions();
                         }
                     }))
                     .children(self.monitors.iter().enumerate().map(|(idx, monitor_box)| {
@@ -362,7 +538,7 @@ impl Render for MonitorVisualizer {
                                 // Store initial position
                                 this.mouse_down_pos = event.position;
                                 this.did_drag = false;
-                                
+
                                 // For secondary monitors, start dragging
                                 if !is_primary {
                                     this.dragging_index = Some(idx);
@@ -389,11 +565,11 @@ impl Render for MonitorVisualizer {
                                             monitor_box.visual_x,
                                             monitor_box.visual_y,
                                         );
-                                        
+
                                         // Now update with mutable borrow
                                         if let Some(monitor_box) = this.monitors.get_mut(idx) {
                                             monitor_box.monitor.position = new_position;
-                                            
+
                                             // Write the new position to config file
                                             let override_str = monitor_override(
                                                 monitor_box.monitor.name.clone(),
@@ -403,11 +579,11 @@ impl Render for MonitorVisualizer {
                                                 },
                                                 new_position,
                                             );
-                                            
+
                                             write_override_line(&override_str).unwrap_or_else(|e| {
                                                 println!("Failed to write override: {}", e);
                                             });
-                                            
+
                                             // Apply immediately via hyprctl
                                             let monitor_box_clone = monitor_box.clone();
                                             this.apply_monitor_config_immediately(&monitor_box_clone);
@@ -416,7 +592,7 @@ impl Render for MonitorVisualizer {
                                     // Print positions after dragging
                                     this.print_monitor_positions();
                                 }
-                                
+
                                 // Reset drag state
                                 this.dragging_index = None;
                                 this.did_drag = false;
@@ -454,7 +630,7 @@ impl Render for MonitorVisualizer {
             )
             .child(
                 div()
-                    .text_color(theme.foreground.opacity(0.6))
+                    .text_color(foreground_muted)
                     .text_size(px(11.0))
                     .child(format!("Scale factor: {:.4}", self.scale_factor)),
             )
@@ -477,9 +653,9 @@ impl Render for MonitorVisualizer {
                         .child(
                             // Popup content
                             div()
-                                .bg(theme.background)
+                                .bg(theme_colors.background)
                                 .border_1()
-                                .border_color(theme.border)
+                                .border_color(theme_colors.border)
                                 .rounded_lg()
                                 .p_6()
                                 .min_w(px(300.0))
@@ -502,14 +678,14 @@ impl Render for MonitorVisualizer {
                                                     div()
                                                         .font_weight(FontWeight::BOLD)
                                                         .text_size(px(16.0))
-                                                        .text_color(theme.foreground)
+                                                        .text_color(theme_colors.foreground)
                                                         .child(format!("{} (ID: {})", monitor.name, monitor.id)),
                                                 )
                                                 .child(
                                                     div()
                                                         .cursor_pointer()
                                                         .text_size(px(20.0))
-                                                        .text_color(theme.foreground.opacity(0.7))
+                                                        .text_color(theme_colors.foreground.opacity(0.7))
                                                         .on_mouse_down(MouseButton::Left, cx.listener(|this, _event: &MouseDownEvent, _window, cx| {
                                                             this.selected_monitor_index = None;
                                                             cx.notify();
@@ -517,166 +693,15 @@ impl Render for MonitorVisualizer {
                                                         .child("×"),
                                                 ),
                                         )
-                                        .child(
-                                            div()
-                                                .h_px()
-                                                .bg(theme.border),
-                                        )
-                                        .child(
-                                            div()
-                                                .flex()
-                                                .flex_col()
-                                                .gap_3()
-                                                .child(
-                                                    div()
-                                                        .flex()
-                                                        .flex_col()
-                                                        .gap_1()
-                                                        .child(
-                                                            div()
-                                                                .text_color(theme.foreground.opacity(0.7))
-                                                                .text_size(px(12.0))
-                                                                .child("Resolution:"),
-                                                        )
-                                                        .when_some(self.resolution_dropdown.clone(), |this, dropdown| {
-                                                            this.child(Dropdown::new(&dropdown).min_w(px(200.0)))
-                                                        }),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .flex()
-                                                        .flex_col()
-                                                        .gap_1()
-                                                        .child(
-                                                            div()
-                                                                .text_color(theme.foreground.opacity(0.7))
-                                                                .text_size(px(12.0))
-                                                                .child("Refresh Rate:"),
-                                                        )
-                                                        .when_some(self.refresh_dropdown.clone(), |this, dropdown| {
-                                                            this.child(Dropdown::new(&dropdown).min_w(px(200.0)))
-                                                        }),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .flex()
-                                                        .justify_between()
-                                                        .mt_2()
-                                                        .child(
-                                                            div()
-                                                                .text_color(theme.foreground.opacity(0.7))
-                                                                .child("Position:"),
-                                                        )
-                                                        .child(
-                                                            div()
-                                                                .font_weight(FontWeight::MEDIUM)
-                                                                .text_color(theme.foreground)
-                                                                .child(format!("{}x{}", monitor.position.0, monitor.position.1)),
-                                                        ),
-                                                )
-                                                .child(
-                                                    div()
-                                                        .flex()
-                                                        .justify_center()
-                                                        .mt_3()
-                                                        .child({
-                                                            let monitor_name = monitor.name.clone();
-                                                            let resolutions = self.available_resolutions.clone();
-                                                            let refresh_rates = self.available_refresh_rates.clone();
-                                                            let resolution_dropdown = self.resolution_dropdown.clone();
-                                                            let refresh_dropdown = self.refresh_dropdown.clone();
-                                                            
-                                                            Button::new("apply-monitor-config")
-                                                                .label("Apply Configuration")
-                                                                .on_click(move |_, _, cx| {
-                                                                    if let (Some(res_dropdown), Some(ref_dropdown)) = 
-                                                                        (resolution_dropdown.clone(), refresh_dropdown.clone()) {
-                                                                        let selected_res_idx = res_dropdown.read(cx).selected_index(cx);
-                                                                        let selected_refresh_idx = ref_dropdown.read(cx).selected_index(cx);
-                                                                        
-                                                                        if let (Some(res_idx), Some(refresh_idx)) = 
-                                                                            (selected_res_idx, selected_refresh_idx) {
-                                                                            let resolution = &resolutions[res_idx.row];
-                                                                            let refresh_rate_str = &refresh_rates[refresh_idx.row];
-                                                                            
-                                                                            let refresh_rate: f32 = refresh_rate_str
-                                                                                .trim_end_matches("Hz")
-                                                                                .parse()
-                                                                                .unwrap_or(60.0);
-                                                                            
-                                                                            // Use the monitor's current position (updated after dragging)
-                                                                            let position = monitor.position;
-                                                                            
-                                                                            println!("Applying: {} @ {}Hz at {}x{} to {}", 
-                                                                                resolution, refresh_rate, position.0, position.1, monitor_name);
-                                                                            
-                                                                            let override_str = monitor_override(
-                                                                                monitor_name.to_string(),
-                                                                                MonitorMode {
-                                                                                    resolution: resolution.clone(),
-                                                                                    refresh_rate,
-                                                                                },
-                                                                                position,
-                                                                            );
-                                                                            
-                                                                            // Write to config file
-                                                                            write_override_line(&override_str).unwrap_or_else(|e| {
-                                                                                println!("Failed to write override: {}", e);
-                                                                            });
-                                                                            
-                                                                            // Apply immediately using hyprctl keyword
-                                                                            let config_value = format!("{},{}@{},{}x{},1",
-                                                                                monitor_name,
-                                                                                resolution,
-                                                                                refresh_rate,
-                                                                                position.0,
-                                                                                position.1
-                                                                            );
-                                                                            
-                                                                            match Command::new("hyprctl")
-                                                                                .args(["keyword", "monitor", &config_value])
-                                                                                .output()
-                                                                            {
-                                                                                Ok(output) => {
-                                                                                    if output.status.success() {
-                                                                                        println!("✓ Monitor configuration applied successfully");
-                                                                                    } else {
-                                                                                        let stderr = String::from_utf8_lossy(&output.stderr);
-                                                                                        println!("✗ Failed to apply monitor config: {}", stderr);
-                                                                                    }
-                                                                                }
-                                                                                Err(e) => {
-                                                                                    println!("✗ Failed to execute hyprctl: {}", e);
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                })
-                                                        }),
-                                                )
-                                                .when(monitor.position == (0, 0), |this| {
-                                                    this.child(
-                                                        div()
-                                                            .flex()
-                                                            .justify_center()
-                                                            .mt_2()
-                                                            .child(
-                                                                div()
-                                                                    .px_3()
-                                                                    .py_1()
-                                                                    .rounded_md()
-                                                                    .bg(rgb(0x4a7c59))
-                                                                    .text_color(rgb(0xeceff4))
-                                                                    .text_size(px(12.0))
-                                                                    .font_weight(FontWeight::BOLD)
-                                                                    .child("PRIMARY MONITOR"),
-                                                            ),
-                                                    )
-                                                }),
-                                        ),
-                                ),
-                        ),
-                )
-            })
+                        .child(
+                            div()
+                                .h_px()
+                                .bg(theme_colors.border),
+                        )
+                        .child(self.render_monitor_details_panel(&monitor, &theme_colors)),
+                ),
+        ),
+    )
+})
     }
 }

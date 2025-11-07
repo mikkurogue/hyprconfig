@@ -7,7 +7,7 @@ use gpui_component::{ActiveTheme as _, StyledExt};
 
 use crate::{
     conf::{self, write_override_line},
-    ui::{item_pill::item_pill, section_container::section_container},
+    ui::{item_pill::item_pill, section_container::section_container, tooltip::with_tooltip},
     util::keyboard::{LocaleInfo, current_device_locales, sys_locales},
 };
 
@@ -117,10 +117,14 @@ impl Render for KeyboardSettings {
         section_container(cx)
             .min_h(px(200.0))
             .child(
-                div()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(cx.theme().foreground)
-                    .child("Input locales".to_string()),
+                with_tooltip(
+                    "Keyboard locales determine your keyboard layout. You can select multiple locales and switch between them. The first locale in the list will be your default.",
+                    div()
+                        .font_weight(FontWeight::BOLD)
+                        .text_color(cx.theme().foreground)
+                        .child("Input locales".to_string()),
+                    cx,
+                )
             )
             .child(
                 div()

@@ -6,3 +6,4 @@ pub mod item_pill;
 pub mod section_container;
 
 pub mod sidebar;
+pub mod tooltip;
