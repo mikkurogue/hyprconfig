@@ -8,7 +8,7 @@ use gpui_component::{ActiveTheme as _, StyledExt};
 use crate::{
     conf::{self, write_override_line},
     ui::{item_pill::item_pill, section_container::section_container, tooltip::with_tooltip},
-    util::keyboard::{LocaleInfo, current_device_locales, sys_locales},
+    util::keyboard::{LocaleInfo, current_device_locales, get_all_keyboards, sys_locales},
 };
 
 pub struct KeyboardSettings {
@@ -19,6 +19,13 @@ pub struct KeyboardSettings {
 
 impl KeyboardSettings {
     pub fn new(window: &mut gpui::Window, cx: &mut gpui::Context<Self>) -> Self {
+        let keyboards = get_all_keyboards().unwrap_or_else(|e| {
+            eprintln!("Failed to get keyboards: {}", e);
+            vec![]
+        });
+
+        println!("Detected keyboards: {:?}", keyboards);
+
         // Load available locales from XKB
         let available_locales = sys_locales().unwrap_or_else(|e| {
             eprintln!("Failed to load locales from XKB: {}, using fallback", e);

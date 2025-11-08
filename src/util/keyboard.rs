@@ -8,8 +8,9 @@ struct HyprctlDevices {
 }
 
 #[derive(Debug, Deserialize)]
-struct Keyboard {
-    layout: String,
+pub struct Keyboard {
+    pub layout: String,
+    pub name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -78,4 +79,18 @@ pub fn current_device_locales() -> anyhow::Result<HashSet<String>> {
     };
 
     Ok(locales)
+}
+
+/// Get all connected keyboards from hyprctl
+pub fn get_all_keyboards() -> anyhow::Result<Vec<Keyboard>> {
+    let output = Command::new("hyprctl").args(["devices", "-j"]).output()?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!("Failed to execute hyprctl devices"));
+    }
+
+    let json_str = String::from_utf8(output.stdout)?;
+    let devices: HyprctlDevices = serde_json::from_str(&json_str)?;
+
+    Ok(devices.keyboards)
 }

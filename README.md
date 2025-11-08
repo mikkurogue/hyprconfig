@@ -1,18 +1,18 @@
-# Hyprconfig
+# Hyprsettings 
 
-![build](https://github.com/mikkurogue/hyprconfig/actions/workflows/rust.yml/badge.svg)
+![build](https://github.com/mikkurogue/hyprsettings/actions/workflows/rust.yml/badge.svg)
 
 A GUI configuration tool for Hyprland designed to make setup and configuration easier for everyone.
 
-## What is Hyprconfig?
+## What is Hyprsettings?
 
-Hyprconfig is a graphical user interface tool that helps you configure Hyprland without having to manually edit configuration files. It's designed specifically for:
+Hyprsettings is a graphical user interface tool that helps you configure Hyprland without having to manually edit configuration files. It's designed specifically for:
 
 - **New Linux/Hyprland users** who are still learning their way around
 - **Users who prefer GUIs** over editing text configuration files
 - **Anyone who wants a pain-free setup** for monitors, inputs, and other core settings
 
-Whether you're not super tech-savvy or simply want to configure your main Hyprland settings quickly and easily, Hyprconfig provides an intuitive interface to get your system set up without diving into documentation or syntax.
+Whether you're not super tech-savvy or simply want to configure your main Hyprland settings quickly and easily, Hyprsettings provides an intuitive interface to get your system set up without diving into documentation or syntax.
 
 ## Overrides
 This project (on first run) will create and append a new `conf-overrides.conf` to your hyprland config.
