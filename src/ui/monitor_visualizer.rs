@@ -499,10 +499,13 @@ impl Render for MonitorVisualizer {
                               }
                       }
                   }))
-                  .on_mouse_up(MouseButton::Left, cx.listener(|this, _event: &MouseUpEvent, _window, _cx| {
-                      if this.dragging_index.is_some() {
+                  .on_mouse_up(MouseButton::Left, cx.listener(|this, _event: &MouseUpEvent, _window, cx| {
+                      if let Some(idx) = this.dragging_index {
+                          // Apply snapping before releasing
+                          snap(&mut this.monitors, idx);
                           this.dragging_index = None;
                           this.print_monitor_positions();
+                          cx.notify();
                         }
                     }))
                     .children(self.monitors.iter().enumerate().map(|(idx, monitor_box)| {
@@ -703,5 +706,105 @@ impl Render for MonitorVisualizer {
         ),
     )
 })
+    }
+}
+
+const SNAP_THRESHOLD: f32 = 20.0;
+
+fn find_closest(dragged_monitor: &MonitorBox, other_monitors: &[MonitorBox]) -> Option<(f32, f32)> {
+    let mut min_distance = f32::MAX;
+    let mut snap_offset_x = 0.0;
+    let mut snap_offset_y = 0.0;
+
+    let dragged_right = dragged_monitor.visual_x + dragged_monitor.visual_width;
+    let dragged_bottom = dragged_monitor.visual_y + dragged_monitor.visual_height;
+
+    for other in other_monitors {
+        let other_right = other.visual_x + other.visual_width;
+        let other_bottom = other.visual_y + other.visual_height;
+
+        // Check all edge combinations
+        let snap_points = [
+            // Snap left edge to other's right edge
+            (
+                other_right - dragged_monitor.visual_x,
+                0.0,
+                other_right,
+                dragged_monitor.visual_y,
+            ),
+            // Snap right edge to other's left edge
+            (
+                other.visual_x - dragged_right,
+                0.0,
+                other.visual_x - dragged_monitor.visual_width,
+                dragged_monitor.visual_y,
+            ),
+            // Snap top edge to other's bottom edge
+            (
+                0.0,
+                other_bottom - dragged_monitor.visual_y,
+                dragged_monitor.visual_x,
+                other_bottom,
+            ),
+            // Snap bottom edge to other's top edge
+            (
+                0.0,
+                other.visual_y - dragged_bottom,
+                dragged_monitor.visual_x,
+                other.visual_y - dragged_monitor.visual_height,
+            ),
+        ];
+
+        for (dx, dy, new_x, new_y) in snap_points {
+            let distance = (dx * dx + dy * dy).sqrt();
+            if distance < min_distance && distance < SNAP_THRESHOLD {
+                min_distance = distance;
+                snap_offset_x = new_x - dragged_monitor.visual_x;
+                snap_offset_y = new_y - dragged_monitor.visual_y;
+            }
+        }
+
+        // Also check for alignment (same x or y while snapping the other axis)
+        // Align top edges
+        if (dragged_monitor.visual_y - other.visual_y).abs() < SNAP_THRESHOLD {
+            snap_offset_y = other.visual_y - dragged_monitor.visual_y;
+        }
+        // Align bottom edges
+        if (dragged_bottom - other_bottom).abs() < SNAP_THRESHOLD {
+            snap_offset_y = other_bottom - dragged_bottom;
+        }
+        // Align left edges
+        if (dragged_monitor.visual_x - other.visual_x).abs() < SNAP_THRESHOLD {
+            snap_offset_x = other.visual_x - dragged_monitor.visual_x;
+        }
+        // Align right edges
+        if (dragged_right - other_right).abs() < SNAP_THRESHOLD {
+            snap_offset_x = other_right - dragged_right;
+        }
+    }
+
+    if min_distance < SNAP_THRESHOLD || snap_offset_x.abs() > 0.1 || snap_offset_y.abs() > 0.1 {
+        Some((snap_offset_x, snap_offset_y))
+    } else {
+        None
+    }
+}
+
+fn snap(monitors: &mut [MonitorBox], dragging_index: usize) {
+    if dragging_index >= monitors.len() {
+        return;
+    }
+
+    let dragged = monitors[dragging_index].clone();
+    let others: Vec<MonitorBox> = monitors
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != dragging_index)
+        .map(|(_, m)| m.clone())
+        .collect();
+
+    if let Some((offset_x, offset_y)) = find_closest(&dragged, &others) {
+        monitors[dragging_index].visual_x += offset_x;
+        monitors[dragging_index].visual_y += offset_y;
     }
 }
