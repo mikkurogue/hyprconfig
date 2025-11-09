@@ -7,10 +7,8 @@ use gpui_component::{ActiveTheme as _, StyledExt};
 
 use crate::{
     conf::{self, write_override_line},
-    ui::{item_pill::item_pill, section_container::section_container, tooltip::with_tooltip},
-    util::keyboard::{
-        Keyboard, LocaleInfo, current_device_locales, get_all_keyboards, sys_locales,
-    },
+    ui::{section_container::section_container, tooltip::with_tooltip},
+    util::keyboard::{LocaleInfo, current_device_locales, get_all_keyboards, sys_locales},
 };
 
 pub struct KeyboardSettings {
@@ -105,25 +103,12 @@ impl KeyboardSettings {
         }
     }
 
-    fn remove_locale(&mut self, locale: &str, cx: &mut Context<Self>) {
-        self.selected_locales.remove(locale);
-        cx.notify();
-    }
-
     fn extract_code_from_label(&self, label: &str) -> Option<String> {
         // Extract code from "Label (code)" format
         label
             .rfind('(')
             .and_then(|start| label.rfind(')').map(|end| (start, end)))
             .map(|(start, end)| label[start + 1..end].trim().to_string())
-    }
-
-    fn get_label_for_code(&self, code: &str) -> String {
-        self.available_locales
-            .iter()
-            .find(|l| l.code == code)
-            .map(|l| l.label.clone())
-            .unwrap_or_else(|| code.to_string())
     }
 }
 
@@ -175,63 +160,5 @@ impl Render for KeyboardSettings {
             );
 
         devices_view
-
-        // section_container(cx)
-        //     .min_h(px(200.0))
-        //     .child(
-        //         with_tooltip(
-        //             "Keyboard locales determine your keyboard layout. You can select multiple locales and switch between them. The first locale in the list will be your default.",
-        //             div()
-        //                 .font_weight(FontWeight::BOLD)
-        //                 .text_color(cx.theme().foreground)
-        //                 .child("Input locales".to_string()),
-        //             cx,
-        //         )
-        //     )
-        //     .child(
-        //         div()
-        //             .h_flex()
-        //             .gap_4()
-        //             .items_center()
-        //             .child(div().min_w(px(120.0)).child("Locale:"))
-        //             .child(/* old single dropdown removed */)
-        //     )
-        //     .child(
-        //         div()
-        //             .h_flex()
-        //             .gap_4()
-        //             .items_center()
-        //             .child(div().min_w(px(120.0)).child("Selected:"))
-        //             .child(
-        //                 div().h_flex().gap_2().flex_wrap().children(
-        //                     self.selected_locales
-        //                         .iter()
-        //                         .enumerate()
-        //                         .map(|(idx, locale)| {
-        //                             let locale_clone = locale.clone();
-        //                             let label = self.get_label_for_code(locale);
-        //                             item_pill(cx)
-        //                                 .child(
-        //                                     div()
-        //                                         .text_sm()
-        //                                         .child(format!("{} ({})", label, locale)),
-        //                                 )
-        //                                 .child(Button::new(("remove", idx)).label("×").on_click(
-        //                                     cx.listener(move |this, _, _, cx| {
-        //                                         this.remove_locale(&locale_clone, cx);
-        //                                     }),
-        //                                 ))
-        //                         }),
-        //                 ),
-        //             ),
-        //     )
-        //     .child(
-        //         div()
-        //             .h_flex()
-        //             .gap_4()
-        // //             .items_center()
-        //             .child(div().min_w(px(120.0)))
-        // ,
-        //     )
     }
 }
