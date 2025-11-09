@@ -50,7 +50,7 @@ pub fn sys_locales() -> anyhow::Result<Vec<LocaleInfo>> {
     Ok(locales)
 }
 
-/// Get the currently configured keyboard locales from hyprctl
+/// Get the currently set keyboard locales from hyprctl
 /// just parse the first keyboard's layout field as all keyboards are assumed to have the same
 /// layouts
 pub fn current_device_locales() -> anyhow::Result<HashSet<String>> {

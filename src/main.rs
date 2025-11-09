@@ -4,8 +4,8 @@ use gpui::*;
 use gpui_component::*;
 use serde::Deserialize;
 
-mod conf;
-mod config_writer;
+mod setting;
+mod setting_writer;
 mod ui;
 mod util;
 
@@ -33,21 +33,21 @@ impl ToString for ActiveSection {
     }
 }
 
-pub struct Hyprconfig {
+pub struct Hyprsetting {
     monitor_visualizer: Entity<MonitorVisualizer>,
     keyboard_settings: Entity<KeyboardSettings>,
     mouse_settings: Entity<MouseSettings>,
     active_section: ActiveSection,
 }
 
-impl Hyprconfig {
+impl Hyprsetting {
     pub fn set_active_section(&mut self, section: ActiveSection, cx: &mut Context<Self>) {
         self.active_section = section;
         cx.notify();
     }
 }
 
-impl Render for Hyprconfig {
+impl Render for Hyprsetting {
     fn render(&mut self, _: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let active_section = self.active_section;
 
@@ -113,7 +113,7 @@ pub fn init(cx: &mut App) {
 fn main() {
     // first check if overrides file exists, if not create it.
 
-    conf::create_overrides().expect("Failed to create Hyprland overrides configuration file");
+    setting::create_overrides().expect("Failed to create Hyprland overrides setting file");
 
     let app = Application::new();
 
@@ -142,7 +142,7 @@ fn main() {
 
                     let mouse_settings = cx.new(|cx| MouseSettings::new(window, cx));
 
-                    Hyprconfig {
+                    Hyprsetting {
                         monitor_visualizer,
                         keyboard_settings,
                         mouse_settings,

@@ -1,8 +1,8 @@
-use std::{collections::HashSet, path::Path};
+use std::path::Path;
 
 use crate::{
-    config_writer::{
-        ConfigLine, ConfigObjectKey, ConfigWriter, DeviceSetting, HYPR_CONFIG_PATH,
+    setting_writer::{
+        SettingLine, HYPR_SETTING_PATH,
         HYPR_OVERRIDES_PATH,
     },
     monitor::MonitorMode,
@@ -10,34 +10,34 @@ use crate::{
 use dirs::home_dir;
 use std::io::Write;
 
-const MONITOR_CONFIG_PREFIX: &str = "monitor=";
+const MONITOR_SETTING_PREFIX: &str = "monitor=";
 const KEYBOARD_LAYOUT_PREFIX: &str = "input:kb_layout=";
 const MOUSE_SENSITIVITY_PREFIX: &str = "input:sensitivity=";
 const MOUSE_FORCE_NO_ACCEL_PREFIX: &str = "input:force_no_accel=";
 
-struct MonitorConfig;
-struct KeyboardLayoutConfig;
+struct MonitorSetting;
+struct KeyboardLayoutSetting;
 // I dont like this but i am too stupid and tired to think
-struct MouseSensitivityConfig;
-struct MouseForceNoAccelConfig;
+struct MouseSensitivitySetting;
+struct MouseForceNoAccelSetting;
 
-impl ConfigLine for MonitorConfig {
+impl SettingLine for MonitorSetting {
     fn prefix(&self) -> &str {
-        MONITOR_CONFIG_PREFIX
+        MONITOR_SETTING_PREFIX
     }
 
     fn extract_key(&self, line: &str) -> Option<String> {
         let trimmed = line.trim();
-        if let Some(config) = trimmed.strip_prefix(self.prefix())
-            && let Some(comma_pos) = config.find(',')
+        if let Some(setting) = trimmed.strip_prefix(self.prefix())
+            && let Some(comma_pos) = setting.find(',')
         {
-            return Some(config[..comma_pos].to_string());
+            return Some(setting[..comma_pos].to_string());
         }
         None
     }
 }
 
-impl ConfigLine for KeyboardLayoutConfig {
+impl SettingLine for KeyboardLayoutSetting {
     fn prefix(&self) -> &str {
         KEYBOARD_LAYOUT_PREFIX
     }
@@ -52,7 +52,7 @@ impl ConfigLine for KeyboardLayoutConfig {
     }
 }
 
-impl ConfigLine for MouseSensitivityConfig {
+impl SettingLine for MouseSensitivitySetting {
     fn prefix(&self) -> &str {
         MOUSE_SENSITIVITY_PREFIX
     }
@@ -67,7 +67,7 @@ impl ConfigLine for MouseSensitivityConfig {
     }
 }
 
-impl ConfigLine for MouseForceNoAccelConfig {
+impl SettingLine for MouseForceNoAccelSetting {
     fn prefix(&self) -> &str {
         MOUSE_FORCE_NO_ACCEL_PREFIX
     }
@@ -82,49 +82,49 @@ impl ConfigLine for MouseForceNoAccelConfig {
     }
 }
 
-/// Registry of all known config line types
-pub fn get_config_handlers() -> Vec<Box<dyn ConfigLine>> {
+/// Registry of all known setting line types
+pub fn get_setting_handlers() -> Vec<Box<dyn SettingLine>> {
     vec![
-        Box::new(MonitorConfig),
-        Box::new(KeyboardLayoutConfig),
-        Box::new(MouseSensitivityConfig),
-        Box::new(MouseForceNoAccelConfig),
+        Box::new(MonitorSetting),
+        Box::new(KeyboardLayoutSetting),
+        Box::new(MouseSensitivitySetting),
+        Box::new(MouseForceNoAccelSetting),
     ]
 }
 
-/// Create the overrides configuration file for hyprland.
-/// This file is created at `~./config/hypr/conf-overrides.conf`
+/// Create the overrides setting file for hyprland.
+/// This file is created at `~/.config/hypr/conf-overrides.conf`
 /// If the file already exists, it will not be overwritten.
 /// This function will only run once if the file does not exist.
 /// It will also edit the main file `~/.config/hypr/hyprland.conf` to include the overrides file as
-/// a source file at the bottom of the main configuration file to ensure that all exisiting
+/// a source file at the bottom of the main setting file to ensure that all exisiting
 /// settings are overwritten but not removed.
 pub fn create_overrides() -> anyhow::Result<()> {
     let home_dir = home_dir().ok_or_else(|| {
         anyhow::anyhow!("Could not determine home directory for the current user")
     })?;
 
-    let hypr_config_path = home_dir.join(HYPR_CONFIG_PATH);
+    let hypr_setting_path = home_dir.join(HYPR_SETTING_PATH);
     let hypr_overrides_path = home_dir.join(HYPR_OVERRIDES_PATH);
 
-    if !Path::new(&hypr_config_path).exists() {
+    if !Path::new(&hypr_setting_path).exists() {
         return Err(anyhow::anyhow!(
-            "Hyprland configuration file not found at {}, Hyprland is either not installed or not configured",
-            HYPR_CONFIG_PATH
+            "Hyprland setting file not found at {}, Hyprland is either not installed or not configured",
+            HYPR_SETTING_PATH
         ));
     }
 
     if !Path::new(&hypr_overrides_path).exists() {
-        std::fs::write(&hypr_overrides_path, "# Hyprland configuration overrides\n")?;
+        std::fs::write(&hypr_overrides_path, "# Hyprland setting overrides\n")?;
 
         // append the file source line to main conf
-        let mut hypr_config_file = std::fs::OpenOptions::new()
+        let mut hypr_setting_file = std::fs::OpenOptions::new()
             .append(true)
-            .open(&hypr_config_path)?;
+            .open(&hypr_setting_path)?;
 
         writeln!(
-            hypr_config_file,
-            "\n# Include overrides configuration\nsource = ~/{}",
+            hypr_setting_file,
+            "\n# Include overrides setting\nsource = ~/{}",
             HYPR_OVERRIDES_PATH
         )?;
     }
@@ -132,9 +132,9 @@ pub fn create_overrides() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Write a line to the overrides configuartion file.
-/// Uses dynamic config handlers to determine if the line should replace an existing one.
-/// For monitor configs, it will replace lines with the same monitor name.
+/// Write a line to the overrides setting file.
+/// Uses dynamic setting handlers to determine if the line should replace an existing one.
+/// For monitor settings, it will replace lines with the same monitor name.
 /// For keyboard layout, it will replace the existing layout line.
 pub fn write_override_line(line: &str) -> anyhow::Result<()> {
     let home_dir = home_dir().ok_or_else(|| {
@@ -147,7 +147,7 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
     let content = std::fs::read_to_string(&hypr_overrides_path)?;
     let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
 
-    let handlers = get_config_handlers();
+    let handlers = get_setting_handlers();
     let mut replaced = false;
 
     // Try to find a handler that matches this line
@@ -181,7 +181,7 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Generate a monitor override string for hyprland configuration.
+/// Generate a monitor override string for hyprland setting.
 /// Format: monitor=name,resolution@refreshrate,position,scale
 /// Example: monitor=DP-3,2560x1440@155,0x0,1
 pub fn monitor_override(
@@ -190,35 +190,35 @@ pub fn monitor_override(
     position: (i32, i32),
 ) -> String {
     let position_string = format!("{}x{}", position.0, position.1);
-    let config_string = format!(
+    let setting_string = format!(
         "{}@{},{},1",
         settings.resolution, settings.refresh_rate, position_string
     );
 
     format!(
         "{}{},{}",
-        MONITOR_CONFIG_PREFIX, monitor_name, config_string
+        MONITOR_SETTING_PREFIX, monitor_name, setting_string
     )
 }
 
 // pub fn set_keyboard_device_layout(device: String, locale: String) -> anyhow::Result<()> {
 //     let input_device = DeviceSetting {
-//         key: ConfigObjectKey::Device,
+//         key: SettingObjectKey::Device,
 //         device_name: device,
 //         kb_layout: locale,
 //     };
 //
-//     ConfigWriter::build(input_device)?.write()?;
+//     SettingWriter::build(input_device)?.write()?;
 //
 //     Ok(())
 // }
 
-/// Generate a mouse sensitivity override string for hyprland configuration.
+/// Generate a mouse sensitivity override string for hyprland setting.
 pub fn mouse_sensitivity_override(sensitivity: f32) -> String {
     format!("{}{}", MOUSE_SENSITIVITY_PREFIX, sensitivity)
 }
 
-/// Generate a mouse force_no_accel override string for hyprland configuration.
+/// Generate a mouse force_no_accel override string for hyprland setting.
 pub fn mouse_force_no_accel_override(force_no_accel: bool) -> String {
     format!(
         "{}{}",
@@ -232,18 +232,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_monitor_config_extract_key() {
-        let monitor_config = MonitorConfig;
+    fn test_monitor_setting_extract_key() {
+        let monitor_setting = MonitorSetting;
         assert_eq!(
-            monitor_config.extract_key("monitor=DP-3,2560x1440@155,0x0,1"),
+            monitor_setting.extract_key("monitor=DP-3,2560x1440@155,0x0,1"),
             Some("DP-3".to_string())
         );
         assert_eq!(
-            monitor_config.extract_key("  monitor=HDMI-A-1,1920x1080@60,1920x0,1  "),
+            monitor_setting.extract_key("  monitor=HDMI-A-1,1920x1080@60,1920x0,1  "),
             Some("HDMI-A-1".to_string())
         );
-        assert_eq!(monitor_config.extract_key("# comment line"), None);
-        assert_eq!(monitor_config.extract_key("some other config"), None);
+        assert_eq!(monitor_setting.extract_key("# comment line"), None);
+        assert_eq!(monitor_setting.extract_key("some other setting"), None);
     }
 
     #[test]
@@ -281,12 +281,12 @@ mod tests {
     }
 
     #[test]
-    fn test_keyboard_config_extract_key() {
-        let kb_config = KeyboardLayoutConfig;
+    fn test_keyboard_setting_extract_key() {
+        let kb_setting = KeyboardLayoutSetting;
         assert_eq!(
-            kb_config.extract_key("input:kb_layout=us,fi"),
+            kb_setting.extract_key("input:kb_layout=us,fi"),
             Some("kb_layout".to_string())
         );
-        assert_eq!(kb_config.extract_key("monitor=DP-3,auto"), None);
+        assert_eq!(kb_setting.extract_key("monitor=DP-3,auto"), None);
     }
 }

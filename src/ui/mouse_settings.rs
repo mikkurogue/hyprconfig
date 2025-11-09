@@ -5,7 +5,7 @@ use gpui_component::button::Button;
 use gpui_component::slider::{Slider, SliderEvent, SliderState};
 use gpui_component::switch::Switch;
 
-use crate::conf::{mouse_force_no_accel_override, mouse_sensitivity_override, write_override_line};
+use crate::setting::{mouse_force_no_accel_override, mouse_sensitivity_override, write_override_line};
 use crate::ui::{section_container::section_container, tooltip::with_tooltip};
 use crate::util::mouse::{get_accel_setting, get_current_sensitivity};
 
@@ -154,7 +154,7 @@ impl Render for MouseSettings {
                     .child(div().min_w(px(120.0)))
                     .child(
                         Button::new("apply-mouse-settings")
-                            .label("Apply mouse config")
+                            .label("Apply mouse setting")
                             .on_click(move |_, _, _cx| {
                                 let sens = mouse_sensitivity_override(current_sens);
                                 let force_no_accel = mouse_force_no_accel_override(accel_setting);

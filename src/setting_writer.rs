@@ -2,40 +2,40 @@ use std::fs;
 
 use dirs::home_dir;
 
-use crate::conf::get_config_handlers;
+use crate::setting::get_setting_handlers;
 
-pub const HYPR_CONFIG_PATH: &str = ".config/hypr/hyprland.conf";
+pub const HYPR_SETTING_PATH: &str = ".config/hypr/hyprland.conf";
 pub const HYPR_OVERRIDES_PATH: &str = ".config/hypr/conf-overrides.conf";
 
-pub struct ConfigWriter {
-    setting_line: (ConfigObjectKey, String),
+pub struct SettingWriter {
+    setting_line: (SettingObjectKey, String),
 }
 
-impl ConfigWriter {
-    /// Config builder for device configuration. Currently only supports keyboard layout settings.
+impl SettingWriter {
+    /// Setting builder for device setting. Currently only supports keyboard layout settings.
     pub fn build(input_device: DeviceSetting) -> anyhow::Result<Self> {
-        if input_device.key == ConfigObjectKey::Device {
+        if input_device.key == SettingObjectKey::Device {
             let start = "device { ".to_string();
             let end = " }".to_string();
 
             let name = format!("    name = {}", input_device.device_name);
             let kb_layout = format!("    kb_layout = {}", input_device.kb_layout);
 
-            return Ok(ConfigWriter {
+            return Ok(SettingWriter {
                 setting_line: (
-                    ConfigObjectKey::Device,
+                    SettingObjectKey::Device,
                     format!("{}\n{}\n{}\n{}", start, name, kb_layout, end),
                 ),
             });
         }
 
         Err(anyhow::anyhow!(
-            "Unsupported configuration object, for non-device specific settings use `conf::write_override_line` function instead - this writer will be updated to handle single line settings in the future"
+            "Unsupported setting object, for non-device specific settings use `setting::write_override_line` function instead - this writer will be updated to handle single line settings in the future"
         ))
     }
 
-    /// Write the configuration override file if it doesn't exist, and append the source line to the
-    /// main hyprland configuration file.
+    /// Write the setting override file if it doesn't exist, and append the source line to the
+    /// main hyprland setting file.
     pub fn write(self) -> anyhow::Result<()> {
         let home_dir = home_dir().ok_or_else(|| {
             anyhow::anyhow!("Could not determine home directory for the current user")
@@ -47,7 +47,7 @@ impl ConfigWriter {
         let content = std::fs::read_to_string(&hypr_overrides_path)?;
         let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
 
-        let handlers = get_config_handlers();
+        let handlers = get_setting_handlers();
         let mut replaced = false;
 
         // Try to find a handler that matches this line
@@ -82,27 +82,27 @@ impl ConfigWriter {
     }
 }
 
-/// Configuration objects for specific things like devices in hyprland
+/// Setting objects for specific things like devices in hyprland
 #[derive(PartialEq)]
-pub enum ConfigObjectKey {
+pub enum SettingObjectKey {
     Device,
 }
 
-/// Struct representing a device setting for hyprland configuration
+/// Struct representing a device setting for hyprland setting
 /// specicially for keyboards
 pub struct DeviceSetting {
-    pub key: ConfigObjectKey,
+    pub key: SettingObjectKey,
     pub device_name: String,
     pub kb_layout: String,
 }
 
-/// Trait for configuration lines that can be overridden in the config file
-pub trait ConfigLine {
-    /// Get the prefix that identifies this type of config line
+/// Trait for setting lines that can be overridden in the setting file
+pub trait SettingLine {
+    /// Get the prefix that identifies this type of setting line
     fn prefix(&self) -> &str;
 
-    /// Extract the identifier/key from a config line (e.g., monitor name, setting key)
-    /// Returns None if the line doesn't match this config type
+    /// Extract the identifier/key from a setting line (e.g., monitor name, setting key)
+    /// Returns None if the line doesn't match this setting type
     fn extract_key(&self, line: &str) -> Option<String>;
 
     /// Check if this line should replace an existing line with the same key

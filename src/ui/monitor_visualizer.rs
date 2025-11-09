@@ -6,7 +6,7 @@ use gpui_component::button::Button;
 use gpui_component::dropdown::*;
 use std::process::Command;
 
-use crate::conf::{monitor_override, write_override_line};
+use crate::setting::{monitor_override, write_override_line};
 use crate::ui::tooltip::with_tooltip;
 use crate::util::monitor::MonitorInfo;
 use crate::util::monitor::MonitorMode;
@@ -298,10 +298,10 @@ impl MonitorVisualizer {
             )
             .child(
                 div().flex().justify_center().mt_3().child(
-                    Button::new("apply-monitor-config")
-                        .label("Apply Configuration")
+                    Button::new("apply-monitor-setting")
+                        .label("Apply Setting")
                         .on_click(move |_, _, cx| {
-                            Self::apply_monitor_configuration(
+                            Self::apply_monitor_setting(
                                 &monitor_name,
                                 monitor_position,
                                 &resolutions,
@@ -330,7 +330,7 @@ impl MonitorVisualizer {
             })
     }
 
-    fn apply_monitor_configuration(
+    fn apply_monitor_setting(
         monitor_name: &str,
         position: (i32, i32),
         resolutions: &[String],
@@ -376,21 +376,21 @@ impl MonitorVisualizer {
             println!("Failed to write override: {}", e);
         });
 
-        let config_value = format!(
+        let setting_value = format!(
             "{},{}@{},{}x{},1",
             monitor_name, resolution, refresh_rate, position.0, position.1
         );
 
         match Command::new("hyprctl")
-            .args(["keyword", "monitor", &config_value])
+            .args(["keyword", "monitor", &setting_value])
             .output()
         {
             Ok(output) => {
                 if output.status.success() {
-                    println!("✓ Monitor configuration applied successfully");
+                    println!("✓ Monitor setting applied successfully");
                 } else {
                     let stderr = String::from_utf8_lossy(&output.stderr);
-                    println!("✗ Failed to apply monitor config: {}", stderr);
+                    println!("✗ Failed to apply monitor setting: {}", stderr);
                 }
             }
             Err(e) => {
@@ -399,8 +399,8 @@ impl MonitorVisualizer {
         }
     }
 
-    fn apply_monitor_config_immediately(&self, monitor_box: &MonitorBox) {
-        let config_value = format!(
+    fn apply_monitor_setting_immediately(&self, monitor_box: &MonitorBox) {
+        let setting_value = format!(
             "{},{}@{},{}x{},1",
             monitor_box.monitor.name,
             monitor_box.monitor.current_resolution,
@@ -409,10 +409,10 @@ impl MonitorVisualizer {
             monitor_box.monitor.position.1
         );
 
-        println!("Applying monitor position via hyprctl: {}", config_value);
+        println!("Applying monitor position via hyprctl: {}", setting_value);
 
         match Command::new("hyprctl")
-            .args(["keyword", "monitor", &config_value])
+            .args(["keyword", "monitor", &setting_value])
             .output()
         {
             Ok(output) => {
@@ -573,7 +573,7 @@ impl Render for MonitorVisualizer {
                                         if let Some(monitor_box) = this.monitors.get_mut(idx) {
                                             monitor_box.monitor.position = new_position;
 
-                                            // Write the new position to config file
+                                            // Write the new position to setting file
                                             let override_str = monitor_override(
                                                 monitor_box.monitor.name.clone(),
                                                 MonitorMode {
@@ -589,7 +589,7 @@ impl Render for MonitorVisualizer {
 
                                             // Apply immediately via hyprctl
                                             let monitor_box_clone = monitor_box.clone();
-                                            this.apply_monitor_config_immediately(&monitor_box_clone);
+                                            this.apply_monitor_setting_immediately(&monitor_box_clone);
                                         }
                                     }
                                     // Print positions after dragging

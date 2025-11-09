@@ -4,22 +4,22 @@ use gpui_component::{
     sidebar::{Sidebar, SidebarGroup, SidebarHeader, SidebarMenu, SidebarMenuItem},
 };
 
-use crate::{ActiveSection, Hyprconfig};
+use crate::{ActiveSection, Hyprsetting};
 
 pub fn create_sidebar(
     active_section: ActiveSection,
-    cx: &mut Context<Hyprconfig>,
+    cx: &mut Context<Hyprsetting>,
 ) -> impl IntoElement {
     Sidebar::new(Side::Left)
         .collapsed(false)
         .collapsible(true)
-        .header(SidebarHeader::new().child(h_flex().child("Configuration")))
+        .header(SidebarHeader::new().child(h_flex().child("Hypland settings")))
         .child(
             SidebarGroup::new("Displays").child(
                 SidebarMenu::new().child(
                     SidebarMenuItem::new("Monitors")
                         .active(active_section == ActiveSection::Monitors)
-                        .on_click(cx.listener(|view: &mut Hyprconfig, _, _, cx| {
+                        .on_click(cx.listener(|view: &mut Hyprsetting, _, _, cx| {
                             view.set_active_section(ActiveSection::Monitors, cx);
                         })),
                 ),
@@ -31,14 +31,14 @@ pub fn create_sidebar(
                     .child(
                         SidebarMenuItem::new("Keyboard")
                             .active(active_section == ActiveSection::Keyboard)
-                            .on_click(cx.listener(|view: &mut Hyprconfig, _, _, cx| {
+                            .on_click(cx.listener(|view: &mut Hyprsetting, _, _, cx| {
                                 view.set_active_section(ActiveSection::Keyboard, cx);
                             })),
                     )
                     .child(
                         SidebarMenuItem::new("Mouse")
                             .active(active_section == ActiveSection::Mouse)
-                            .on_click(cx.listener(|view: &mut Hyprconfig, _, _, cx| {
+                            .on_click(cx.listener(|view: &mut Hyprsetting, _, _, cx| {
                                 view.set_active_section(ActiveSection::Mouse, cx);
                             })),
                     ),

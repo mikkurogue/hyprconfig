@@ -6,8 +6,7 @@ use std::collections::HashSet;
 use gpui_component::{ActiveTheme as _, StyledExt};
 
 use crate::{
-    conf::{self},
-    config_writer::{self, ConfigObjectKey, DeviceSetting},
+    setting_writer::{self, SettingObjectKey, DeviceSetting},
     ui::{section_container::section_container, tooltip::with_tooltip},
     util::keyboard::{LocaleInfo, current_device_locales, get_all_keyboards, sys_locales},
 };
@@ -143,7 +142,7 @@ impl Render for KeyboardSettings {
                             .child(div().h_flex().child(Dropdown::new(dropdown).min_w(px(200.0))))
                             .child(
                                 Button::new(("apply-keyboard-settings", idx))
-                                    .label("Apply keyboard config")
+                                    .label("Apply keyboard setting")
                                     .on_click(cx.listener(move |this, _, _, cx| {
                                         let device_name = this.devices[idx].name.clone();
                                         let dropdown_state = this.device_dropdowns[idx].read(cx);
@@ -151,12 +150,12 @@ impl Render for KeyboardSettings {
                                             let locale_code = this.available_locales[sel.row].code.clone();
 
                                             let device = DeviceSetting {
-                                                key: ConfigObjectKey::Device,
+                                                key: SettingObjectKey::Device,
                                                 device_name: device_name.clone(),
                                                 kb_layout: locale_code.clone(),
                                             };
 
-                                            config_writer::ConfigWriter::build(device).and_then(|w| w.write()).unwrap();
+                                            setting_writer::SettingWriter::build(device).and_then(|w| w.write()).unwrap();
                                         } else {
                                             println!("No locale selected for {}", device_name);
                                         }
