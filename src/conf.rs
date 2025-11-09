@@ -12,6 +12,27 @@ const KEYBOARD_LAYOUT_PREFIX: &str = "input:kb_layout=";
 const MOUSE_SENSITIVITY_PREFIX: &str = "input:sensitivity=";
 const MOUSE_FORCE_NO_ACCEL_PREFIX: &str = "input:force_no_accel=";
 
+/// Configuration objects for specific things like devices in hyprland
+#[derive(PartialEq)]
+enum ConfigObjectKey {
+    Device,
+}
+
+/// Configuration keys for device settings in hyprland, for now we support only the name and the
+/// kb_layout.
+enum DeviceConfigKey {
+    Name,
+    KbLayout,
+}
+
+/// Struct representing a device setting for hyprland configuration
+/// specicially for keyboards
+pub struct DeviceSetting {
+    key: ConfigObjectKey,
+    device_name: String,
+    kb_layout: String,
+}
+
 /// Trait for configuration lines that can be overridden in the config file
 trait ConfigLine {
     /// Get the prefix that identifies this type of config line
@@ -215,6 +236,10 @@ pub fn monitor_override(
 
 /// Generate a keyboard locale override string for hyprland configuration.
 /// E.g., for locales {"us", "fi"}, generates "input:kb_layout=us,fi"
+#[deprecated(
+    since = "0.2.0",
+    note = "Use set_keyboard_device_layout instead for per-device settings"
+)]
 pub fn locale_override(locale: HashSet<String>) -> String {
     let mut input_locale_setting = String::from("input:kb_layout=");
 
@@ -222,6 +247,35 @@ pub fn locale_override(locale: HashSet<String>) -> String {
     input_locale_setting.push_str(&locales.join(","));
 
     input_locale_setting
+}
+
+pub fn set_keyboard_device_layout(device: String, locale: String) -> String {
+    let input_device = DeviceSetting {
+        key: ConfigObjectKey::Device,
+        device_name: device,
+        kb_layout: locale,
+    };
+
+    if let Ok(config_str) = config_obj_str_builder(input_device) {
+        return config_str;
+    } else {
+        // For now we can panic here but we may want to just bubble up later.
+        panic!("Failed to build device configuration string");
+    }
+}
+
+fn config_obj_str_builder(input_device: DeviceSetting) -> anyhow::Result<String> {
+    if input_device.key == ConfigObjectKey::Device {
+        let start = "device { ".to_string();
+        let end = " }".to_string();
+
+        let name = format!("    name = {}", input_device.device_name);
+        let kb_layout = format!("    kb_layout = {}", input_device.kb_layout);
+
+        return Ok(format!("{}\n{}\n{}\n{}", start, name, kb_layout, end));
+    }
+
+    Err(anyhow::anyhow!("Unsupported configuration object"))
 }
 
 /// Generate a mouse sensitivity override string for hyprland configuration.

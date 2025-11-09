@@ -8,13 +8,16 @@ use gpui_component::{ActiveTheme as _, StyledExt};
 use crate::{
     conf::{self, write_override_line},
     ui::{item_pill::item_pill, section_container::section_container, tooltip::with_tooltip},
-    util::keyboard::{LocaleInfo, current_device_locales, get_all_keyboards, sys_locales},
+    util::keyboard::{
+        Keyboard, LocaleInfo, current_device_locales, get_all_keyboards, sys_locales,
+    },
 };
 
 pub struct KeyboardSettings {
     selected_locales: HashSet<String>,
     available_locales: Vec<LocaleInfo>,
-    locale_dropdown: Entity<DropdownState<Vec<String>>>,
+    devices: Vec<crate::util::keyboard::Keyboard>,
+    device_dropdowns: Vec<Entity<DropdownState<Vec<String>>>>,
 }
 
 impl KeyboardSettings {
@@ -64,34 +67,41 @@ impl KeyboardSettings {
             .next()
             .and_then(|locale| available_locales.iter().position(|l| &l.code == locale));
 
-        let locale_dropdown = cx.new(|cx| {
-            DropdownState::new(
-                locale_labels.clone(),
-                current_locale_idx.map(gpui_component::IndexPath::new),
-                window,
-                cx,
-            )
-        });
+        // Create a dropdown per device so each has its own state/id
+        let mut device_dropdowns = Vec::new();
+        for _device in keyboards.iter() {
+            let dd = cx.new(|cx| {
+                DropdownState::new(
+                    locale_labels.clone(),
+                    current_locale_idx.map(gpui_component::IndexPath::new),
+                    window,
+                    cx,
+                )
+            });
+            device_dropdowns.push(dd);
+        }
 
-        // Subscribe to dropdown selection events
-        cx.subscribe(
-            &locale_dropdown,
-            |this, _dropdown, event: &DropdownEvent<Vec<String>>, cx| {
-                if let DropdownEvent::Confirm(Some(selected_label)) = event {
-                    // Extract the code from the label format "Label (code)"
-                    if let Some(code) = this.extract_code_from_label(selected_label) {
-                        this.selected_locales.insert(code);
-                        cx.notify();
+        // Subscribe to each dropdown selection
+        for dd in device_dropdowns.iter() {
+            cx.subscribe(
+                dd,
+                |this, _dropdown, event: &DropdownEvent<Vec<String>>, cx| {
+                    if let DropdownEvent::Confirm(Some(selected_label)) = event {
+                        if let Some(code) = this.extract_code_from_label(selected_label) {
+                            this.selected_locales.insert(code);
+                            cx.notify();
+                        }
                     }
-                }
-            },
-        )
-        .detach();
+                },
+            )
+            .detach();
+        }
 
         KeyboardSettings {
             selected_locales,
             available_locales,
-            locale_dropdown,
+            devices: keyboards,
+            device_dropdowns,
         }
     }
 
@@ -119,9 +129,7 @@ impl KeyboardSettings {
 
 impl Render for KeyboardSettings {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let selected_locales = self.selected_locales.clone();
-
-        let devices = get_all_keyboards().unwrap_or_default();
+        let devices = &self.devices;
 
         let devices_view = section_container(cx)
             .flex_col()
@@ -136,7 +144,8 @@ impl Render for KeyboardSettings {
                     .h_flex()
                     .gap_4()
                     .flex_wrap()
-                    .children(devices.iter().map(|d| {
+                    .children(devices.iter().enumerate().map(|(idx, d)| {
+                        let dropdown = &self.device_dropdowns[idx];
                         div()
                             .flex_col()
                             .gap_2()
@@ -144,7 +153,24 @@ impl Render for KeyboardSettings {
                             .border_1()
                             .border_color(cx.theme().border)
                             .child(div().font_weight(FontWeight::BOLD).child(d.name.clone()))
-                            .child(div().text_sm().child(format!("Layouts: {}", d.layout)))
+                            .child(div().text_sm().child(format!("Current layout: {}", d.layout)))
+                            .child(div().h_flex().child(Dropdown::new(dropdown).min_w(px(200.0))))
+                            .child(
+                                Button::new(("apply-keyboard-settings", idx))
+                                    .label("Apply keyboard config")
+                                    .on_click(cx.listener(move |this, _, _, cx| {
+                                        let device_name = this.devices[idx].name.clone();
+                                        let dropdown_state = this.device_dropdowns[idx].read(cx);
+                                        if let Some(sel) = dropdown_state.selected_index(cx) {
+                                            let locale_code = this.available_locales[sel.row].code.clone();
+                                            let override_str = conf::set_keyboard_device_layout(device_name.clone(), locale_code.clone());
+                                            println!("Generated override string: {}", override_str);
+                                            write_override_line(&override_str).unwrap_or_else(|e| println!("Failed to write override line: {}", e));
+                                        } else {
+                                            println!("No locale selected for {}", device_name);
+                                        }
+                                    })),
+                            )
                     }))
             );
 
@@ -168,7 +194,7 @@ impl Render for KeyboardSettings {
         //             .gap_4()
         //             .items_center()
         //             .child(div().min_w(px(120.0)).child("Locale:"))
-        //             .child(Dropdown::new(&self.locale_dropdown).min_w(px(200.0))),
+        //             .child(/* old single dropdown removed */)
         //     )
         //     .child(
         //         div()
@@ -203,24 +229,9 @@ impl Render for KeyboardSettings {
         //         div()
         //             .h_flex()
         //             .gap_4()
-        //             .items_center()
+        // //             .items_center()
         //             .child(div().min_w(px(120.0)))
-        //             .child(
-        //                 Button::new("apply-keyboard-settings")
-        //                     .label("Apply keyboard config")
-        //                     .on_click(move |_, _, _cx| {
-        //                         // TODO: remove the clone here this is just dirty hack to get it
-        //                         // working
-        //                         let override_str = conf::locale_override(selected_locales.clone());
-        //
-        //                         // DEBUG
-        //                         println!("Generated locale override string: {}", override_str);
-        //
-        //                         write_override_line(&override_str).unwrap_or_else(|e| {
-        //                             println!("Failed to write override line: {}", e);
-        //                         });
-        //                     }),
-        //             ),
+        // ,
         //     )
     }
 }
