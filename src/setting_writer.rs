@@ -34,6 +34,12 @@ impl SettingWriter {
         ))
     }
 
+    pub fn build_single<T: std::fmt::Display>(prefix: &str, value: T) -> anyhow::Result<Self> {
+        Ok(SettingWriter {
+            setting_line: (SettingObjectKey::SingleLine, format!("{}{}", prefix, value)),
+        })
+    }
+
     /// Write the setting override file if it doesn't exist, and append the source line to the
     /// main hyprland setting file.
     pub fn write(self) -> anyhow::Result<()> {
@@ -86,6 +92,7 @@ impl SettingWriter {
 #[derive(PartialEq)]
 pub enum SettingObjectKey {
     Device,
+    SingleLine,
 }
 
 /// Struct representing a device setting for hyprland setting

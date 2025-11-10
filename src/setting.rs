@@ -1,11 +1,8 @@
 use std::path::Path;
 
 use crate::{
-    setting_writer::{
-        SettingLine, HYPR_SETTING_PATH,
-        HYPR_OVERRIDES_PATH,
-    },
     monitor::MonitorMode,
+    setting_writer::{HYPR_OVERRIDES_PATH, HYPR_SETTING_PATH, SettingLine},
 };
 use dirs::home_dir;
 use std::io::Write;
@@ -184,6 +181,7 @@ pub fn write_override_line(line: &str) -> anyhow::Result<()> {
 /// Generate a monitor override string for hyprland setting.
 /// Format: monitor=name,resolution@refreshrate,position,scale
 /// Example: monitor=DP-3,2560x1440@155,0x0,1
+#[deprecated(note = "Use setting_writer::build_single().writer() instead")]
 pub fn monitor_override(
     monitor_name: String,
     settings: MonitorMode,
@@ -200,18 +198,6 @@ pub fn monitor_override(
         MONITOR_SETTING_PREFIX, monitor_name, setting_string
     )
 }
-
-// pub fn set_keyboard_device_layout(device: String, locale: String) -> anyhow::Result<()> {
-//     let input_device = DeviceSetting {
-//         key: SettingObjectKey::Device,
-//         device_name: device,
-//         kb_layout: locale,
-//     };
-//
-//     SettingWriter::build(input_device)?.write()?;
-//
-//     Ok(())
-// }
 
 /// Generate a mouse sensitivity override string for hyprland setting.
 pub fn mouse_sensitivity_override(sensitivity: f32) -> String {

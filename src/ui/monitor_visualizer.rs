@@ -6,7 +6,8 @@ use gpui_component::button::Button;
 use gpui_component::dropdown::*;
 use std::process::Command;
 
-use crate::setting::{monitor_override, write_override_line};
+// use crate::setting::{monitor_override, write_override_line};
+use crate::setting_writer::SettingWriter;
 use crate::ui::tooltip::with_tooltip;
 use crate::util::monitor::MonitorInfo;
 use crate::util::monitor::MonitorMode;
@@ -363,18 +364,15 @@ impl MonitorVisualizer {
             resolution, refresh_rate, position.0, position.1, monitor_name
         );
 
-        let override_str = monitor_override(
-            monitor_name.to_string(),
-            MonitorMode {
-                resolution: resolution.clone(),
-                refresh_rate,
-            },
-            position,
+        let monitor_setting_value = format!(
+            "{},{}@{},{}x{},1",
+            monitor_name, resolution, refresh_rate, position.0, position.1
         );
-
-        write_override_line(&override_str).unwrap_or_else(|e| {
+        if let Err(e) = SettingWriter::build_single("monitor=", monitor_setting_value.clone())
+            .and_then(|w| w.write())
+        {
             println!("Failed to write override: {}", e);
-        });
+        }
 
         let setting_value = format!(
             "{},{}@{},{}x{},1",
@@ -574,18 +572,18 @@ impl Render for MonitorVisualizer {
                                             monitor_box.monitor.position = new_position;
 
                                             // Write the new position to setting file
-                                            let override_str = monitor_override(
-                                                monitor_box.monitor.name.clone(),
-                                                MonitorMode {
-                                                    resolution: monitor_box.monitor.current_resolution.clone(),
-                                                    refresh_rate: monitor_box.monitor.current_refresh_rate,
-                                                },
-                                                new_position,
+                                            let monitor_setting_value = format!(
+                                                "{},{}@{},{}x{},1",
+                                                monitor_box.monitor.name,
+                                                monitor_box.monitor.current_resolution,
+                                                monitor_box.monitor.current_refresh_rate,
+                                                new_position.0,
+                                                new_position.1
                                             );
-
-                                            write_override_line(&override_str).unwrap_or_else(|e| {
+                                            if let Err(e) = SettingWriter::build_single("monitor=", monitor_setting_value.clone())
+                                                .and_then(|w| w.write()) {
                                                 println!("Failed to write override: {}", e);
-                                            });
+                                            }
 
                                             // Apply immediately via hyprctl
                                             let monitor_box_clone = monitor_box.clone();
