@@ -1,14 +1,18 @@
+use std::io::Write;
 use std::rc::Rc;
 
+use dirs::home_dir;
 use gpui::*;
 use gpui_component::*;
 use serde::Deserialize;
+use std::path::Path;
 
 mod setting;
 mod setting_writer;
 mod ui;
 mod util;
 
+use crate::setting_writer::{HYPR_OVERRIDES_PATH, HYPR_SETTING_PATH};
 use crate::ui::keyboard_settings::KeyboardSettings;
 use crate::ui::monitor_visualizer::MonitorVisualizer;
 use crate::ui::mouse_settings::MouseSettings;
@@ -113,7 +117,7 @@ pub fn init(cx: &mut App) {
 fn main() {
     // first check if overrides file exists, if not create it.
 
-    setting::create_overrides().expect("Failed to create Hyprland overrides setting file");
+    create_overrides().expect("Failed to create Hyprland overrides setting file");
 
     let app = Application::new();
 
@@ -157,4 +161,44 @@ fn main() {
         })
         .detach();
     });
+}
+
+/// Create the overrides setting file for hyprland.
+/// This file is created at `~/.config/hypr/conf-overrides.conf`
+/// If the file already exists, it will not be overwritten.
+/// This function will only run once if the file does not exist.
+/// It will also edit the main file `~/.config/hypr/hyprland.conf` to include the overrides file as
+/// a source file at the bottom of the main setting file to ensure that all exisiting
+/// settings are overwritten but not removed.
+fn create_overrides() -> anyhow::Result<()> {
+    let home_dir = home_dir().ok_or_else(|| {
+        anyhow::anyhow!("Could not determine home directory for the current user")
+    })?;
+
+    let hypr_setting_path = home_dir.join(HYPR_SETTING_PATH);
+    let hypr_overrides_path = home_dir.join(HYPR_OVERRIDES_PATH);
+
+    if !Path::new(&hypr_setting_path).exists() {
+        return Err(anyhow::anyhow!(
+            "Hyprland setting file not found at {}, Hyprland is either not installed or not configured",
+            HYPR_SETTING_PATH
+        ));
+    }
+
+    if !Path::new(&hypr_overrides_path).exists() {
+        std::fs::write(&hypr_overrides_path, "# Hyprland setting overrides\n")?;
+
+        // append the file source line to main conf
+        let mut hypr_setting_file = std::fs::OpenOptions::new()
+            .append(true)
+            .open(&hypr_setting_path)?;
+
+        writeln!(
+            hypr_setting_file,
+            "\n# Include overrides setting\nsource = ~/{}",
+            HYPR_OVERRIDES_PATH
+        )?;
+    }
+
+    Ok(())
 }

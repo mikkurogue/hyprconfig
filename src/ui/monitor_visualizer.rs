@@ -10,7 +10,6 @@ use std::process::Command;
 use crate::setting_writer::SettingWriter;
 use crate::ui::tooltip::with_tooltip;
 use crate::util::monitor::MonitorInfo;
-use crate::util::monitor::MonitorMode;
 
 const PADDING: f32 = 40.0;
 const MIN_CANVAS_WIDTH: f32 = 600.0;
